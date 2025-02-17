@@ -11,8 +11,9 @@ secrets_json = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]  # ✅ TOML에서 가져�
 creds_dict = json.loads(secrets_json)  # JSON 문자열을 Python 딕셔너리로 변환
 
 # 📌 Google Sheets API 인증
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)  # ✅ 파일 대신 딕셔너리 사용
+# scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"] 로컬용
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)  # 공유용
+# creds = ServiceAccountCredentials.from_json_keyfile_name("google_sheets_key.json", scope) 로컬용
 client = gspread.authorize(creds)  # ✅ Google Sheets 접근
 
 # 📌 Google Sheets 연결
@@ -51,12 +52,9 @@ df_ranking = df_all.groupby(["이름", "소속팀", "포지션"], as_index=False
     "퇴장": "sum"
 })
 
-# 📌 포인트 기준으로 정렬 (내림차순)
-df_ranking = df_ranking.sort_values(by="FKL 포인트", ascending=False)
+# 📌 기본 정렬 테이블 (이름, 소속팀, 포지션, 포인트 기준)
+df_default_view = df_ranking[["이름", "소속팀", "포지션", "FKL 포인트"]].sort_values(by="FKL 포인트", ascending=False)
 
-def make_clickable(name):
-    return f'<a href="?player={name}" target="_self">{name}</a>'
-df_ranking["이름"] = df_ranking["이름"].apply(make_clickable)
 
 # 📌 Streamlit UI
 st.title("🏆 K리그 판타지 리그 - 포인트 순위표")
@@ -76,39 +74,53 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# 📌 팀 선택 필터 추가
 selected_team = st.sidebar.selectbox("📌 팀을 선택하세요", ["전체"] + df_ranking["소속팀"].unique().tolist(), key="team_selectbox")
-
 if selected_team != "전체":
     df_ranking = df_ranking[df_ranking["소속팀"] == selected_team]
 
-if "selected_player" not in st.session_state:
-    st.session_state["selected_player"] = None  # 기본값 설정
 
+# 📌 정렬할 추가 지표 선택
+metrics = ["출전시간", "득점", "도움", "클린시트", "선방", "보너스 포인트", "경고", "퇴장"]
+selected_metric = st.selectbox("🔍 정렬할 추가 지표를 선택하세요", ["FKL 포인트"] + metrics)
+
+# 📌 필터 적용 (팀 선택)
+
+# 📌 정렬 적용
+if selected_metric == "FKL 포인트":
+    df_sorted = df_default_view
+else:
+    df_sorted = df_ranking[["이름", "소속팀", "포지션", selected_metric]].sort_values(by=selected_metric, ascending=False)
+
+
+# ✅ 선수 이름 클릭 가능하게 변경
+def make_clickable(name):
+    return f'<a href="?player={name}" target="_self">{name}</a>'
+
+df_sorted["이름"] = df_sorted["이름"].apply(make_clickable)
+
+# 📌 선수 선택 확인 (쿼리 파라미터)
 query_params = st.query_params
 selected_player = query_params.get("player", [])
 
 if selected_player:
-    print(selected_player)
-    st.session_state["selected_player"] = selected_player  # URL에서 가져온 값으로 갱신
+    st.session_state["selected_player"] = selected_player
 
-if st.session_state["selected_player"] is None:
-    # ✅ 선수 선택이 안 된 경우 → 기본 포인트 순위표 표시
+# 📌 선수 선택 시 히스토리 출력, 선택되지 않았으면 랭킹표 출력
+if "selected_player" not in st.session_state or st.session_state["selected_player"] is None:
     st.write("### 선수 포인트 랭킹")
-    st.markdown(df_ranking.to_html(escape=False, index=False), unsafe_allow_html=True)
-
+    st.markdown(df_sorted.to_html(escape=False, index=False), unsafe_allow_html=True)
 else:
-    # ✅ 선수 선택된 경우 → 히스토리 테이블로 전환
     selected_player = st.session_state["selected_player"]
-    
     st.write(f"## {selected_player} 경기별 히스토리")
 
-    # 선택한 선수의 경기별 히스토리 필터링
+    # ✅ 선택한 선수의 경기별 히스토리 필터링
     player_history = df_all[df_all["이름"] == selected_player]
 
-    # 선수 경기 기록 출력
-    st.table(player_history[["소속팀", "라운드","상대팀","출전시간", "FKL 포인트", "득점", "도움", "클린시트", "선방", "보너스 포인트", "경고", "퇴장"]].reset_index(drop=True))
+    # ✅ 히스토리 테이블 출력 (인덱스 없이)
+    st.table(player_history[["소속팀", "라운드", "상대팀", "출전시간", "FKL 포인트", "득점", "도움", "클린시트", "선방", "보너스 포인트", "경고", "퇴장"]].reset_index(drop=True))
 
-    # 뒤로 가기 버튼
+    # ✅ 뒤로 가기 버튼 추가
     if st.button("🔙 뒤로 가기"):
-        st.session_state.update({"selected_player": None})  # 값 초기화
-        st.rerun()  # 페이지 새로고침 (순위표 다시 표시)
+        st.session_state["selected_player"] = None
+        st.rerun()  # 페이지 새로고침
