@@ -12,8 +12,8 @@ creds_dict = json.loads(secrets_json)  # JSON 문자열을 Python 딕셔너리�
 
 # 📌 Google Sheets API 인증
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("google_sheets_key.json", scope)
-client = gspread.authorize(creds)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)  # ✅ 파일 대신 딕셔너리 사용
+client = gspread.authorize(creds)  # ✅ Google Sheets 접근
 
 # 📌 Google Sheets 연결
 spreadsheet = client.open("팀_raw_data")  # Google Sheets 제목
