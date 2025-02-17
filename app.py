@@ -6,6 +6,10 @@ import gspread
 import urllib.parse
 
 import pandas as pd
+
+secrets_json = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]  # ✅ TOML에서 가져옴
+creds_dict = json.loads(secrets_json)  # JSON 문자열을 Python 딕셔너리로 변환
+
 # 📌 Google Sheets API 인증
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("google_sheets_key.json", scope)
