@@ -89,6 +89,8 @@ selected_metric = st.selectbox("🔍 정렬할 추가 지표를 선택하세요"
 # 📌 정렬 적용
 if selected_metric == "FKL 포인트":
     df_sorted = df_default_view
+elif selected_metric == "선방":
+    df_sorted = df_ranking[df_ranking["포지션"] == "GK"][["이름", "소속팀", "포지션", selected_metric]].sort_values(by=selected_metric, ascending=False)
 else:
     df_sorted = df_ranking[["이름", "소속팀", "포지션", selected_metric]].sort_values(by=selected_metric, ascending=False)
 
