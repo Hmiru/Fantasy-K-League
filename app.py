@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 import gspread
 import urllib.parse
-
+import json
 import pandas as pd
 
 secrets_json = st.secrets["GOOGLE_SHEETS_CREDENTIALS"]  # ✅ TOML에서 가져옴
